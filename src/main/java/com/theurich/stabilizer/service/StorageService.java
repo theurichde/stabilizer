@@ -1,5 +1,6 @@
 package com.theurich.stabilizer.service;
 
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
@@ -10,7 +11,7 @@ public interface StorageService {
 
     void init();
 
-    void store(MultipartFile file);
+    URI store(MultipartFile file);
 
     Stream<Path> loadAll();
 

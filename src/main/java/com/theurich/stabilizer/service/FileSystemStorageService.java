@@ -1,13 +1,16 @@
 package com.theurich.stabilizer.service;
 
-import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.stream.Stream;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -18,25 +21,29 @@ public class FileSystemStorageService implements StorageService {
 
     private static final String NOT_IMPLEMENTED_MESSAGE = "Not implemented yet!";
 
-    @Value("${video.save.root.directory}")
-    private Path rootLocation;
+    //    @Value("${video.save.root.directory}")
+    private final Path rootLocation = Paths.get("/tmp/stabilizer");
 
     @Override
     public void init() {
         try {
-            Files.createDirectories(rootLocation);
+            final Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxrwxrwx");
+            final FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(perms);
+            Files.createDirectory(rootLocation, attr);
         } catch (final IOException e) {
             e.printStackTrace();
         }
     }
 
     @Override
-    public void store(final MultipartFile file) {
+    public URI store(final MultipartFile file) {
         final Path path = getFilePath(file.getOriginalFilename());
         try {
-            file.transferTo(new File(path.toUri()));
+            Files.write(path, file.getBytes());
+            return path.toUri();
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
     }
 
