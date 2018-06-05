@@ -7,6 +7,7 @@ import java.net.URI;
 
 import com.theurich.stabilizer.service.StabilizerService;
 import com.theurich.stabilizer.service.StorageService;
+import com.theurich.stabilizer.util.PathUtil;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
@@ -48,7 +49,8 @@ public class StabilizerController {
         try {
             final byte[] bytes = file.getBytes();
             final URI location = storageService.store(file);
-            final String output = stabilizerService.stabilize(location.getPath(), "/tmp/stabilizer/test.mp4");
+            final String output = stabilizerService
+                    .stabilize(location.getPath(), PathUtil.ROOT_LOCATION.resolve("test.mp4").toString());
             redirectAttributes.addFlashAttribute("File created: ", output);
             return getFile(output);
         } catch (IOException e) {
@@ -60,7 +62,8 @@ public class StabilizerController {
     private byte[] getFile(String input) throws IOException {
         // TODO: java.io.FileNotFoundException: tmp/stabilizer/tmp/stabilizer/test.mp4
         // Missing trailing slash
-        InputStream inputStream = storageService.loadAsResource(input).getInputStream();
+        InputStream inputStream = storageService.loadAsResource("file://" + input).getInputStream();
+        //        InputStream inputStream = storageService.loadAsResource("file://" + input).getInputStream();
         return IOUtils.toByteArray(inputStream);
     }
 

@@ -2,7 +2,10 @@ package com.theurich.stabilizer.service;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Objects;
 
+import com.theurich.stabilizer.util.PathUtil;
 import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
@@ -31,12 +34,30 @@ public class StabilizerService {
     }
 
     public String stabilize(final String fileLocation, final String outputLocation) throws IOException {
-        final FFmpegBuilder fFmpegBuilder = fFmpeg.builder().setVideoFilter(VIDSTABTRANSFORM)
-                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addInput(fileLocation).addOutput(outputLocation)
-                .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL).done();
+
+        final FFmpegBuilder firstPassBuilder = Objects.requireNonNull(fFmpeg).builder()
+                //                .setVideoFilter("acopy")
+                .addInput(fileLocation).setAudioFilter(VIDSTABDETECT + "=result=" + getResolve("transform.trf"))
+                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(getResolve("empty.mp4").toString()).done();
+
+        final FFmpegExecutor firstPassExecutor = new FFmpegExecutor(fFmpeg);
+        firstPassExecutor.createJob(firstPassBuilder).run();
+
+        final FFmpegBuilder secondPassBuilder = fFmpeg.builder().addInput(fileLocation)
+                .setAudioFilter(VIDSTABTRANSFORM + "=input=" + getResolve("transform.trf"))
+                //                .setFormat("mp4")
+                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(outputLocation)
+                .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL)
+                //                .setVideoBitRate(10000)
+                //                .setFormat("mp4")
+                .done();
         final FFmpegExecutor executor = new FFmpegExecutor(fFmpeg);
-        executor.createJob(fFmpegBuilder).run();
+        executor.createJob(secondPassBuilder).run();
         return outputLocation;
+    }
+
+    private Path getResolve(final String other) {
+        return PathUtil.ROOT_LOCATION.resolve(other);
     }
 
 }
