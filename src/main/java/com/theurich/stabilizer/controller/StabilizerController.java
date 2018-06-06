@@ -49,8 +49,8 @@ public class StabilizerController {
         try {
             final byte[] bytes = file.getBytes();
             final URI location = storageService.store(file);
-            final String output = stabilizerService
-                    .stabilize(location.getPath(), PathUtil.ROOT_LOCATION.resolve("test.mp4").toString());
+            final String output = PathUtil.ROOT_LOCATION.resolve("test.mp4").toString();
+            final boolean isStabilized = stabilizerService.stabilize(location.getPath(), output);
             redirectAttributes.addFlashAttribute("File created: ", output);
             return getFile(output);
         } catch (IOException e) {

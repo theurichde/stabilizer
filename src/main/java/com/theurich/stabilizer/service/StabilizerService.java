@@ -33,27 +33,34 @@ public class StabilizerService {
         }
     }
 
-    public String stabilize(final String fileLocation, final String outputLocation) throws IOException {
+    public boolean stabilize(final String fileLocation, final String outputLocation) throws IOException {
 
-        final FFmpegBuilder firstPassBuilder = Objects.requireNonNull(fFmpeg).builder()
-                //                .setVideoFilter("acopy")
-                .addInput(fileLocation).setAudioFilter(VIDSTABDETECT + "=result=" + getResolve("transform.trf"))
-                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(getResolve("empty.mp4").toString()).done();
+        processFirstPass(fileLocation);
+        processSecondPass(fileLocation, outputLocation);
 
-        final FFmpegExecutor firstPassExecutor = new FFmpegExecutor(fFmpeg);
-        firstPassExecutor.createJob(firstPassBuilder).run();
+        return true;
+    }
 
-        final FFmpegBuilder secondPassBuilder = fFmpeg.builder().addInput(fileLocation)
-                .setAudioFilter(VIDSTABTRANSFORM + "=input=" + getResolve("transform.trf"))
-                //                .setFormat("mp4")
-                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(outputLocation)
-                .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL)
-                //                .setVideoBitRate(10000)
-                //                .setFormat("mp4")
+    private void processSecondPass(final String fileLocation, final String outputLocation) throws IOException {
+        final FFmpegBuilder secondPassBuilder = Objects.requireNonNull(fFmpeg).builder().addInput(fileLocation) //
+                .setAudioFilter(VIDSTABTRANSFORM + "=input=" + getResolve("transform.trf")) //
+                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(outputLocation) //
+                .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) //
                 .done();
         final FFmpegExecutor executor = new FFmpegExecutor(fFmpeg);
         executor.createJob(secondPassBuilder).run();
-        return outputLocation;
+    }
+
+    private void processFirstPass(final String fileLocation) throws IOException {
+
+        final FFmpegBuilder firstPassBuilder = Objects.requireNonNull(fFmpeg).builder().addInput(fileLocation) //
+                .setAudioFilter(VIDSTABDETECT + "=result=" + getResolve("transform.trf")) //
+                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG) //
+                .addOutput(getResolve("empty.mp4").toString()) //
+                .done();
+
+        final FFmpegExecutor firstPassExecutor = new FFmpegExecutor(fFmpeg);
+        firstPassExecutor.createJob(firstPassBuilder).run();
     }
 
     private Path getResolve(final String other) {
