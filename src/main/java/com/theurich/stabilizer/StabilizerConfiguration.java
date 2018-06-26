@@ -8,17 +8,24 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 @EnableWebMvc
 @EnableAutoConfiguration
 @Configuration
-@PropertySource("classpath:application.properties")
+@PropertySource("classpath:config.properties")
 @ComponentScan("com.theurich.stabilizer")
 public class StabilizerConfiguration {
 
     @Bean
-    //    @ConfigurationProperties(prefix = "stabilizer")
+    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
+        return new PropertySourcesPlaceholderConfigurer();
+    }
+
+    @Bean
     public StabilizerService stabilizerService() {
         return new StabilizerService();
     }
@@ -28,6 +35,10 @@ public class StabilizerConfiguration {
         return new FileSystemStorageService();
     }
 
+    @Bean
+    public Environment environment() {
+        return new StandardEnvironment();
+    }
 }
 
 

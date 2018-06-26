@@ -1,6 +1,5 @@
 package com.theurich.stabilizer.service;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -9,26 +8,31 @@ import com.theurich.stabilizer.util.PathUtil;
 import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
-import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
-@Component
+@Service
 public class StabilizerService {
 
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    private static String ffmpegPath = "/home/theurich/TempX/ffmpeg-git-20180208-64bit-static/ffmpeg";
     //    @Value("${stabilizer.video.ffmpeg.location}")
-    private String ffmpegPath = "/home/theurich/TempX/ffmpeg-git-20180208-64bit-static/ffmpeg";
+    //    private String ffmpegPath;
 
-    private final FFmpeg fFmpeg = getfFmpeg();
+    private final FFmpeg ffmpeg = getFfmpeg();
 
-    private final String VIDSTABDETECT = "vidstabdetect";
+    private static final String VIDSTABDETECT = "vidstabdetect";
 
-    private final String VIDSTABTRANSFORM = "vidstabtransform";
+    private static final String VIDSTABTRANSFORM = "vidstabtransform";
 
-    @PostConstruct
-    private FFmpeg getfFmpeg() {
+    //    @PostConstruct
+    private FFmpeg getFfmpeg() {
         try {
             return new FFmpeg(ffmpegPath);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Could not get FFMpeg!", e);
             return null;
         }
     }
@@ -37,30 +41,48 @@ public class StabilizerService {
 
         processFirstPass(fileLocation);
         processSecondPass(fileLocation, outputLocation);
+        processSideBySideVideo(fileLocation, outputLocation);
 
         return true;
     }
 
-    private void processSecondPass(final String fileLocation, final String outputLocation) throws IOException {
-        final FFmpegBuilder secondPassBuilder = Objects.requireNonNull(fFmpeg).builder().addInput(fileLocation) //
-                .setAudioFilter(VIDSTABTRANSFORM + "=input=" + getResolve("transform.trf")) //
-                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(outputLocation) //
-                .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) //
-                .done();
-        final FFmpegExecutor executor = new FFmpegExecutor(fFmpeg);
-        executor.createJob(secondPassBuilder).run();
-    }
-
     private void processFirstPass(final String fileLocation) throws IOException {
 
-        final FFmpegBuilder firstPassBuilder = Objects.requireNonNull(fFmpeg).builder().addInput(fileLocation) //
+        final FFmpegBuilder firstPassBuilder = Objects.requireNonNull(ffmpeg).builder().addInput(fileLocation) //
                 .setAudioFilter(VIDSTABDETECT + "=result=" + getResolve("transform.trf")) //
                 .setVerbosity(FFmpegBuilder.Verbosity.DEBUG) //
                 .addOutput(getResolve("empty.mp4").toString()) //
                 .done();
 
-        final FFmpegExecutor firstPassExecutor = new FFmpegExecutor(fFmpeg);
+        final FFmpegExecutor firstPassExecutor = new FFmpegExecutor(ffmpeg);
         firstPassExecutor.createJob(firstPassBuilder).run();
+    }
+
+    private void processSecondPass(final String fileLocation, final String outputLocation) throws IOException {
+        final FFmpegBuilder secondPassBuilder = Objects.requireNonNull(ffmpeg).builder().addInput(fileLocation) //
+                .setAudioFilter(VIDSTABTRANSFORM + "=input=" + getResolve("transform.trf")) //
+                .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(outputLocation) //
+                .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) //
+                .done();
+        final FFmpegExecutor executor = new FFmpegExecutor(ffmpeg);
+        executor.createJob(secondPassBuilder).run();
+    }
+
+    private void processSideBySideVideo(final String fileLocationOne, final String fileLocationTwo) throws IOException {
+
+        final String[] split = fileLocationOne.split("\\.");
+        final String outputLocation = split[0] + "_sbs." + split[1];
+
+        final FFmpegBuilder sideBySideBuilder = Objects.requireNonNull(ffmpeg).builder().addInput(fileLocationOne)
+                .addInput(fileLocationTwo).setComplexFilter(
+                        "[0:v]setpts=PTS-STARTPTS, pad=iw*2:ih[bg]; [1:v]setpts=PTS-STARTPTS[fg]; [bg][fg]overlay=w")
+                .addOutput(outputLocation).done();
+
+        final FFmpegExecutor executor = new FFmpegExecutor(ffmpeg);
+        executor.createJob(sideBySideBuilder).run();
+
+        //        ffmpeg -i video1.mp4 -i video2.mp4 -filter_complex "[0:v]setpts=PTS-STARTPTS, pad=iw*2:ih[bg]; [1:v]setpts=PTS-STARTPTS[fg]; [bg][fg]overlay=w" side_by_side.mp4
+
     }
 
     private Path getResolve(final String other) {
