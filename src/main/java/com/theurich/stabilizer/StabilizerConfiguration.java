@@ -11,9 +11,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.StandardEnvironment;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-@EnableWebMvc
 @EnableAutoConfiguration
 @Configuration
 @PropertySource("classpath:config.properties")

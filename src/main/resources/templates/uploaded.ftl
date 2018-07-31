@@ -1,7 +1,14 @@
-<h1>${fileName}</h1>
+<#import "lib/wrap.ftl" as wrap>
 
-<form action="/show/${fileName}">
-    <input type="submit" value="${fileName}">
-</form>
+<@wrap.page>
 
-<a href="/show/${fileName}">${fileName}</a>
+<div class="row">
+    <div class="col s6">
+        <div class="collection">
+            <a class="collection-item" href="/show/${fileName}">Stabilized View</a>
+            <a class="collection-item" href="/show/${sbsFileName}">Side by Side View</a>
+        </div>
+    </div>
+</div>
+
+</@wrap.page>

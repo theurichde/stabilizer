@@ -2,6 +2,7 @@ package com.theurich.stabilizer.service;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Objects;
 
 import com.theurich.stabilizer.util.PathUtil;
@@ -18,14 +19,16 @@ public class StabilizerService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static String ffmpegPath = "/home/theurich/TempX/ffmpeg-git-20180208-64bit-static/ffmpeg";
-    //    @Value("${stabilizer.video.ffmpeg.location}")
-    //    private String ffmpegPath;
 
     private final FFmpeg ffmpeg = getFfmpeg();
 
     private static final String VIDSTABDETECT = "vidstabdetect";
 
     private static final String VIDSTABTRANSFORM = "vidstabtransform";
+
+    private final String INPUT = "=input=";
+
+    private final String TRANSFORM_TRF = "transform.trf";
 
     //    @PostConstruct
     private FFmpeg getFfmpeg() {
@@ -37,10 +40,11 @@ public class StabilizerService {
         }
     }
 
-    public boolean stabilize(final String fileLocation, final String outputLocation) throws IOException {
+    public boolean stabilize(final String fileLocation, final String outputLocation, Map<String, String> parameterMap)
+            throws IOException {
 
         processFirstPass(fileLocation);
-        processSecondPass(fileLocation, outputLocation);
+        processSecondPass(fileLocation, outputLocation, parameterMap);
         processSideBySideVideo(fileLocation, outputLocation);
 
         return true;
@@ -49,7 +53,7 @@ public class StabilizerService {
     private void processFirstPass(final String fileLocation) throws IOException {
 
         final FFmpegBuilder firstPassBuilder = Objects.requireNonNull(ffmpeg).builder().addInput(fileLocation) //
-                .setAudioFilter(VIDSTABDETECT + "=result=" + getResolve("transform.trf")) //
+                .setAudioFilter(VIDSTABDETECT + "=result=" + getResolve(TRANSFORM_TRF)) //
                 .setVerbosity(FFmpegBuilder.Verbosity.DEBUG) //
                 .addOutput(getResolve("empty.mp4").toString()) //
                 .done();
@@ -58,14 +62,43 @@ public class StabilizerService {
         firstPassExecutor.createJob(firstPassBuilder).run();
     }
 
-    private void processSecondPass(final String fileLocation, final String outputLocation) throws IOException {
+    private void processSecondPass(final String fileLocation, final String outputLocation,
+            final Map<String, String> parameterMap) throws IOException {
         final FFmpegBuilder secondPassBuilder = Objects.requireNonNull(ffmpeg).builder().addInput(fileLocation) //
-                .setAudioFilter(VIDSTABTRANSFORM + "=input=" + getResolve("transform.trf")) //
+                .setAudioFilter(generateFilter(parameterMap)) //
                 .setVerbosity(FFmpegBuilder.Verbosity.DEBUG).addOutput(outputLocation) //
                 .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) //
                 .done();
         final FFmpegExecutor executor = new FFmpegExecutor(ffmpeg);
         executor.createJob(secondPassBuilder).run();
+    }
+
+    private String generateFilter(final Map<String, String> parameterMap) {
+
+        if (Objects.isNull(parameterMap) || parameterMap.isEmpty()) {
+            return VIDSTABTRANSFORM + INPUT + getResolve(TRANSFORM_TRF);
+        }
+
+        final StringBuilder builder = new StringBuilder();
+
+        builder.append(VIDSTABTRANSFORM);
+        builder.append(INPUT);
+        builder.append(getResolve(TRANSFORM_TRF));
+
+        for (final Map.Entry<String, String> entry : parameterMap.entrySet()) {
+
+            if (entry.getKey().isEmpty() || entry.getValue().isEmpty()) {
+                continue;
+            }
+
+            builder.append(":");
+            builder.append(entry.getKey());
+            builder.append("=");
+            builder.append(entry.getValue());
+        }
+
+        return builder.toString();
+
     }
 
     private void processSideBySideVideo(final String fileLocationOne, final String fileLocationTwo) throws IOException {
